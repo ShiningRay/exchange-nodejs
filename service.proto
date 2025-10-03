@@ -1,0 +1,391 @@
+syntax = "proto3";
+
+option go_package = "service";
+
+package exchange_service;
+
+service Account {
+  // 创建一个帐户，初始化余额为0
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse) {}
+
+  // 变更余额
+  rpc Alter(AlterRequest) returns (AccountResponse) {}
+
+  // 查询余额
+  rpc QueryBalance(BalanceQueryRequest) returns (BalanceResponse) {}
+
+  // 批量挂单
+  rpc BatchPutOrder(AccountBatchOrderRequest) returns (AccountBatchOrderResponse) {}
+
+  // 用户挂单
+  rpc PutOrder(AccountOrderRequest) returns (AccountOrderResponse) {}
+
+  // 撤销全部挂单
+  rpc CancelAllOrder(QueryOrderRequest) returns(AccountOrderResponse) {}
+
+  // 撤销挂单
+  rpc CancelUserOrder(AccountOrderRequest) returns (AccountOrderResponse) {}
+
+  // 批量撤销挂单
+  rpc BatchCancelUserOrder(AccountBatchOrderRequest) returns (AccountBatchOrderResponse) {}
+
+  // 查询用户当前挂单
+  rpc QueryUserOrder(QueryOrderRequest) returns (AccountOrderList) {}
+
+  // 查询用户历史挂单
+  rpc QueryHistoryOrder(QueryOrderRequest) returns (AccountOrderList) {}
+
+  // 查询用户已完成订单
+  rpc QueryFinishedOrder(QueryOrderRequest) returns (FinishedOrderResponse) {}
+}
+
+message CreateAccountRequest {
+  string userId = 1;
+}
+
+message CreateAccountResponse {
+  string userId = 1;
+}
+
+message AccountOrderRequest {
+  string market = 1; // 交易对名称
+  string userId = 2;
+  string id = 3; // 订单id，可以留空
+  int64 price = 4; // 价格是放大SCALE倍数后的值 SCALE = 1e10
+  int64 amount = 5;
+  string side = 6; // 买单还是卖单 BID = "1"，  ASK = "2"
+  string type = 7; // 订单类型 1表示限价单,2表示市价单 默认限价单
+  string source = 8; // 订单来源
+}
+
+message AccountBatchOrderRequest {
+  repeated AccountOrderRequest orders = 1;
+}
+
+
+message AccountBatchOrderResponse {
+  repeated AccountOrderResponse response = 1;
+}
+
+message QueryOrderRequest {
+  string market = 1; // 交易对
+  string userId = 2; // 用户id
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message AccountOrderModel {
+  string Id = 1;
+  int64 CreateTime = 2;
+  int64 Price = 3;
+  string UserId = 4;
+  string Side = 5;
+  int64 LeftAmount = 6;
+  int64 LeftFunds = 7;
+  int64 FilledFunds = 8;
+  int64 FilledAmount = 9;
+  string Market = 10;
+  string Type = 11;
+}
+
+message FinishOrder {
+  string Id = 1;
+  int64 CreateTime = 2;
+  int64 Price = 4;
+  int64 Amount = 5;
+  string Side = 6;
+}
+
+message AccountOrderResponse {
+  bool success = 1;
+  string code = 2;
+  AccountOrderModel order = 3;
+}
+
+message FinishedOrderResponse {
+  bool success = 1;
+  repeated AccountOrderModel orders = 2;
+}
+
+message AccountOrderList {
+  bool success = 1;
+  repeated AccountOrderModel orders = 2;
+}
+
+message BalanceQueryRequest {
+  string userId = 1;
+  repeated string tokens = 2;
+}
+
+message BalanceRequest {
+  string token = 1;
+  string userId = 2;
+  int64 amount = 3;
+  string rid = 4;
+}
+
+
+
+//// biz_type
+//    const (
+//    BizPutOrder          = "1"
+//    BizOrderFinishChange = "2" // 成交后找零
+//    BizFinishOrder       = "3"
+//    BizDeposit           = "4"
+//    BizStartWithdraw     = "5"
+//    BizFinishWithdraw    = "6"
+//    BizReject            = "7" // 驳回
+//    BizCancelOrder       = "8" // 用户取消订单
+//    BizTransfer          = "9" // 划转余额
+// )
+//
+//// action
+//    const (
+//    AddBalance      = "1"
+//    SubBalance      = "2"
+//    FreezeBalance   = "3"
+//    UnFreezeBalance = "4"
+// )
+
+message AlterRequest {
+  string token = 1;
+  string action = 2; // 变更类型
+  int64 amount = 3;
+  int64 fee = 4; // 手续费
+  string userId = 5;
+  string bizType = 6;  // 业务类型
+  string bizId = 7; // 业务id
+}
+
+message AccountResponse {
+  bool success = 1;
+  string code = 2;
+}
+
+message BalanceResponse {
+  bool success = 1;
+  map<string, BalanceItem> data = 2;
+}
+
+message BalanceItem {
+  int64 total = 2;
+  int64 frozen = 3;
+  int64 available = 4;
+}
+
+service Market {
+  // 创建一个交易对
+  rpc CreateMarket(CreateMarketRequest) returns (CreateMarketResponse) {}
+
+  rpc UpdateMarket(UpdateMarketRequest) returns (UpdateMarketResponse) {}
+
+  // 创建一个限价单
+  rpc PutLimitOrder(MarketOrderRequest) returns (MarketResponse) {}
+
+  // 创建一个市价单
+  rpc PutMarketOrder(MarketOrderRequest) returns (MarketResponse) {}
+
+  // 查询订单详情
+  rpc QueryOrderDetail(MarketOrderRequest) returns (OrderDetailResponse) {}
+
+  // 取消订单
+  rpc CancelOrder(MarketOrderRequest) returns (MarketResponse) {}
+
+  // 查询订单本
+  rpc QueryOrderBook(DepthRequest) returns (OrderBookResponse) {}
+
+  // 查询市场深度
+  rpc GetDepthMerge(DepthRequest) returns (DepthResponse) {}
+
+  // 获取最新成交记录
+  rpc QueryLatestDealRecord(DepthRequest) returns (DealRecordResponse) {}
+
+  // 重新发布成交记录, 用于出现异常时数据恢复
+  rpc RePublishDealOrder(PublishRequest) returns (MarketResponse) {}
+
+  // 获取订单簿中的订单数量
+  rpc QueryOrderCount(DepthRequest) returns (OrderCountResponse) {}
+
+  // 查询某个订单是否存在
+  rpc IsOrderExist(MarketOrderRequest) returns (OrderExistResponse) {}
+}
+
+message CreateMarketRequest {
+  string name = 1; // 交易对名称 btc/eth
+  string token1 = 2; // btc
+  string token2 = 3; // eth
+  int64 minAmount = 4; // 最小下单数量
+  int64 takerFee = 5; //  taker 成交费率  万分之x，比如 takerFee = 100， 实际feeRate = 100 /10000 = 1%
+  int64 makerFee = 6 ;// maker 成交费率
+}
+
+message CreateMarketResponse {
+  bool success = 1;
+}
+
+message UpdateMarketRequest {
+  string name = 1; // 交易对名称 btc/eth
+  int64 minAmount = 2; // 最小下单数量
+  int64 takerFee = 3; // taker 成交费率  万分之x，比如 takerFee = 100， 实际feeRate = 100 /10000 = 1%
+  int64 makerFee = 4 ;// maker 成交费率
+  int64 status = 5; // 状态
+}
+
+message UpdateMarketResponse {
+  bool success = 1;
+}
+
+message PublishRequest {
+  // 需要重放的开始 如2018-10-13 00:00:00
+  string startTime = 1;
+  // 需要重放的结束日前
+  string endTime = 2;
+  string market = 3;
+}
+
+// The request message containing the user's name.
+message MarketOrderRequest {
+  string market = 1;
+  string userId = 2;
+  string id = 3;
+  int64 price = 4;
+  int64 amount = 5;
+  int64 funds = 6;
+  string side = 7;
+  string type = 8;
+}
+
+message MarketOrderModel {
+  string Id = 1;
+  int64 CreateTime = 2;
+  int64 UpdateTime = 3;
+  int64 Price = 4;
+  int64 LeftAmount = 5;
+  int64 FilledAmount = 6;
+  int64 LeftFunds = 7;
+  int64 FilledFunds = 8;
+  string Uid = 9;
+  string Side = 10;
+}
+
+// The response message containing the greetings
+message OrderReply {
+  string message = 1;
+}
+
+message MarketResponse {
+  bool success = 1;
+  string code = 2;
+  int64 current_price = 3;
+  int64 left = 4;
+}
+
+message DepthRequest {
+  string market = 1; // 交易对
+  int32 limit = 2;
+  int32 group = 3;
+}
+
+message DepthResponse {
+  bool success = 1;
+  int64 current_price = 2;
+  map<string, string> bids = 3;
+  map<string, string> asks = 4;
+  string current_side = 5;
+}
+
+message OrderBookResponse {
+  bool success = 1;
+  repeated MarketOrderModel bids = 2;
+  repeated MarketOrderModel asks = 3;
+}
+
+message DealOrderModel {
+  int64 timestamp = 1;
+  int64 price = 2;
+  int64 amount = 3;
+  string side = 4;
+}
+
+message DealRecordResponse {
+  bool success = 1;
+  repeated DealOrderModel data = 2;
+}
+
+message OrderDetailResponse {
+  bool success = 1;
+  MarketOrderModel data = 2;
+  string code = 3;
+}
+
+message OrderCountResponse {
+  bool success = 1;
+  int32 ask = 2;
+  int32 bid = 3;
+}
+
+message OrderExistResponse {
+  bool success = 1;
+  bool exists = 2;
+}
+
+service Quotation {
+  // 查询某个市场最新成交记录
+  rpc QueryLatestDeal(MarketRequest) returns (MarketDealOrderResponse) {}
+  // 查询某个市场最近24小时的行情
+  rpc QueryLatestPrice(MarketRequest) returns (MarketPriceResponse) {}
+  // 查询某个市场最新记录，包括24h行情及最新成交记录
+  rpc QueryLatest(MarketRequest) returns (MarketLatestResponse) {}
+
+  // 获取所有市场的行情信息
+  rpc QueryAllMarket(MarketRequest) returns (MarketListResponse) {}
+}
+
+message MarketRequest {
+  string market = 1;
+  int32 limit = 2;
+}
+
+
+
+message MarketPriceResponse {
+  bool success = 1;
+  int64 price = 2;
+  float change = 3;
+  int64 max = 4;
+  int64 min = 5;
+  int64 volume = 6;
+  int64 value = 7;
+}
+
+message MarketDealOrderResponse {
+  bool success = 1;
+  repeated DealOrderModel dealOrders = 2;
+}
+
+message MarketLatestResponse {
+  bool success = 1;
+  int64 price = 2;
+  float change = 3;
+  int64 max = 4;
+  int64 min = 5;
+  int64 volume = 6;
+  int64 value = 7;
+  repeated DealOrderModel dealOrders = 8;
+}
+
+
+message MarketSimplePrice {
+  string name = 1;
+  int64 price = 2;
+  float change = 3;
+  int64 volume = 4;
+  int64 value = 5;
+  int64 max = 6;
+  int64 min = 7;
+}
+
+message MarketListResponse {
+  bool success = 1;
+  repeated MarketSimplePrice markets = 2;
+}
