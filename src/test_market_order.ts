@@ -2,7 +2,7 @@
 import { createClients } from './client'
 
 const ADDRESS = 'localhost:8888'
-const MARKET = 'USDT_BTC'
+const MARKET = 'BTC/USDT'
 const USER_A = 'user_A_market_test'
 const USER_B = 'user_B_market_test'
 
@@ -14,6 +14,11 @@ const toScaledAmount = (a: number): string => toScaledInt(a)
 const mulScaledFunds = (priceScaled: string, amountScaled: string): string => (
   (BigInt(priceScaled) * BigInt(amountScaled)) / SCALE
 ).toString()
+
+// 新增：sleep 方法，用于在测试步骤之间增加短暂等待，便于后端状态更新
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
 
 function expect(cond: boolean, msg: string) {
   if (!cond) throw new Error(`Assertion failed: ${msg}`)
@@ -145,6 +150,10 @@ async function main() {
         type: '2', // 市价单
         source: 'test-market-order',
       })
+
+      // 如果需要，可以在每次下单后短暂等待
+      await sleep(1000)
+
       expect(mktRes.success === true, 'B market order should succeed')
       console.log('B PutMarketOrder chunk:', amt, mktRes)
 
@@ -165,6 +174,7 @@ async function main() {
       const bBTC = pickBalance(balB, 'BTC').available
       expect(bBTC >= prevBBTC, 'B BTC available should not decrease after market buy')
       prevBBTC = bBTC
+
     }
 
     // 完成后，A的订单应被完全吃掉
