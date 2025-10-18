@@ -2,7 +2,7 @@
 import { createClients } from './client'
 
 const ADDRESS = 'localhost:8888'
-const MARKET = 'BTC/USDT'
+const MARKET = 'USDT_BTC'
 const USER_A = 'user_A_market_test'
 const USER_B = 'user_B_market_test'
 
@@ -135,15 +135,15 @@ async function main() {
     for (const amt of CHUNKS) {
       const amtScaled = toScaledAmount(amt)
       const fundsScaled = mulScaledFunds(priceScaled, amtScaled)
-      const mktRes = await Market.PutMarketOrder({
+      const mktRes = await Account.PutOrder({
         market: MARKET,
         userId: USER_B,
         id: '',
         price: '0', // 市价单忽略价格
         amount: amtScaled,
-        funds: fundsScaled,
         side: '1', // BID
         type: '2', // 市价单
+        source: 'test-market-order',
       })
       expect(mktRes.success === true, 'B market order should succeed')
       console.log('B PutMarketOrder chunk:', amt, mktRes)
@@ -170,6 +170,7 @@ async function main() {
     // 完成后，A的订单应被完全吃掉
     const curA2 = await Account.QueryUserOrder({ market: MARKET, userId: USER_A, limit: 100, offset: 0 })
     const found2 = (curA2.orders || []).find(o => o.Id === orderId)
+    console.log(found2)
     expect(!found2 || BigInt(found2.LeftAmount as string) === 0n, 'A order should be fully consumed')
 
     // A的BTC冻结应为0，BTC可用应为初始-卖出数量（忽略手续费影响到USDT收益）
